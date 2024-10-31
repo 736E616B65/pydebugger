@@ -1,13 +1,8 @@
 # coding=utf-8
 from ctypes import *
-from itertools import count
-from lib2to3.fixes.fix_input import context
-from logging import exception
 
 from my_debugger_defines import *
 
-import sys
-import time
 kernel32 = windll.kernel32
 
 
@@ -32,39 +27,44 @@ class Debugger:
         self.guarded_pages      = []
         self.memory_breakpoints = {}
 
+    # create process and open process
     def load(self, path_to_exe):
-        creation_flags = DEBUG_PROCESS
-
-        startupinfo = STARTUPINFO()
-        process_information = PROCESS_INFORMATION()
-
-        startupinfo.dwFlags = 0X1
+        """ set CreateProcessA parameter """
+        creation_flags          = DEBUG_PROCESS
+        startupinfo             = STARTUPINFO()
+        process_information     = PROCESS_INFORMATION()
+        startupinfo.dwFlags     = 0X1
         startupinfo.wShowWindow = 0X0
+        startupinfo.cb          = sizeof(startupinfo)
+        """ end set CreateProcessA parameter """
 
-        startupinfo.cb = sizeof(startupinfo)
-
-        if kernel32.CreateProcessA(path_to_exe,
-                                   None,
-                                   None,
-                                   None,
-                                   None,
-                                   creation_flags,
-                                   None,
-                                   None,
-                                   byref(startupinfo),
-                                   byref(process_information)):
-
+        if kernel32.CreateProcessA(path_to_exe,                 # lpApplicationName
+                                   None,                        # lpCommandLine
+                                   None,                        # lpProcessAttributes
+                                   None,                        # lpThreadAttributes
+                                   None,                        # bInheritHandles
+                                   creation_flags,              # dwCreationFlags
+                                   None,                        # lpEnvironment
+                                   None,                        # lpCurrentDirectory
+                                   byref(startupinfo),          # lpStartupInfo
+                                   byref(process_information)   # lpProcessInformation
+                                   ):
             print("[*] We have successfully launched the process!")
             print(f"[*] The Process ID I have is: {process_information.dwProcessId}")
 
             self.pid        = process_information.dwProcessId
-            self.h_process  = self.open_process(self, process_information.dwProcessId)
+            self.h_process  = self.open_process(process_information.dwProcessId)
             self.debugger_active = True
         else:
-            print("[*] Error: 0X{kernel32.GetLastError():08X}.")
+            print(f"[*] Error: 0X{kernel32.GetLastError():08X}.")
 
+    # rtn process handle
     def open_process(self, pid):
-        h_process = kernel32.OpenProcess(PROCESS_ALL_ACCESS, False, pid)
+        h_process = kernel32.OpenProcess(
+            PROCESS_ALL_ACCESS, # dwDesiredAccess
+            False,              # bInheritHandle
+            pid                 # dwProcessId
+        )
         return h_process
 
     def attach(self, pid):
@@ -85,15 +85,15 @@ class Debugger:
         continue_status = DBG_CONTINUE
 
         if kernel32.WaitForDebugEvent(byref(debug_event), INFINITE):
-            self.h_thread = self.open_thread(debug_event.dwThreadId)
-            self.context = self.get_thread_context(h_thread=self.h_thread)
-            self.debug_event = debug_event
+            self.h_thread       = self.open_thread(debug_event.dwThreadId)
+            self.context        = self.get_thread_context(h_thread=self.h_thread)
+            self.debug_event    = debug_event
 
             print(f"Event Code: {debug_event.dwDebugEventCode:d} Thread ID: {debug_event.dwThreadId}")
 
         if debug_event.dwDebugEventCode == EXCEPTION_DEBUG_EVENT:
-            self.exception = debug_event.u.Exception.ExceptionRecord.ExceptionCode
-            self.exception_address = debug_event.u.Exception.ExceptionRecord.ExceptionAddress
+            self.exception          = debug_event.u.Exception.ExceptionRecord.ExceptionCode
+            self.exception_address  = debug_event.u.Exception.ExceptionRecord.ExceptionAddress
 
         if self.exception == EXCEPTION_ACCESS_VIOLATION:
             print("Access Violation Detected")
@@ -105,9 +105,10 @@ class Debugger:
             self.exception_handler_single_step()
 
         kernel32.ContinueDebugEvent(
-            debug_event.dwProcessId,
-            debug_event.dwThreadId,
-            continue_status )
+            debug_event.dwProcessId,    # dwProcessId
+            debug_event.dwThreadId,     # dwThreadId
+            continue_status             # dwContinueStatus
+        )
 
     def detach(self):
         if kernel32.DebugActiveProcessStop(self.pid):
@@ -176,14 +177,14 @@ class Debugger:
         count = c_ulong(0)
         length = len(data)
 
-        c_data = c_char_p(data[count.value:])
+        c_data = c_char_p(data[count.value:].encode('utf-8'))
 
         if not kernel32.WriteProcessMemory(
-                self.h_process,
-                address,
-                c_data,
-                length,
-                byref(count)
+                self.h_process, # hProcess
+                address,        # lpBaseAddress
+                c_data,         # lpBugger
+                length,         # nSize
+                byref(count)    # *lpNumberOfBytesWritten
         ):
             return False
         else:

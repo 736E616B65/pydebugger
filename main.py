@@ -2,7 +2,15 @@ import my_debugger
 
 debugger = my_debugger.Debugger()
 pid = input("Enter the PID of the process to attach to: ")
+
 debugger.attach(int(pid))
+printf_address = debugger.func_resolve(b"msvcrt.dll", b"printf")
+print(f"[*] Address of printf 0x{printf_address:08X}")
+debugger.bp_set(printf_address)
+debugger.run()
+
+'''
+debugger.detach()
 lists = debugger.enumerate_threads()
 
 for thread in lists:
@@ -19,3 +27,4 @@ for thread in lists:
     print(f"[*] END DUMP")
 
 debugger.detach()
+'''

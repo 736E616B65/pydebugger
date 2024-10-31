@@ -72,6 +72,7 @@ PAGE_GUARD                     = 0x00000100
 PAGE_NOCACHE                   = 0x00000200
 PAGE_WRITECOMBINE              = 0x00000400
 
+DBG_EXCEPTION_NOT_HANDLED      = 0x80010001    
 
 # Structures for CreateProcessA() function
 # STARTUPINFO describes how to spawn the process
